@@ -280,7 +280,7 @@ class AgentSyncer:
     ) -> SyncResult:
         abs_path = self.root / rel_path
         try:
-            generated = tool.generate(content)
+            generated = tool.generate(content, output_path=rel_path)
         except Exception as e:
             return SyncResult(
                 tool_id=tool.id,
