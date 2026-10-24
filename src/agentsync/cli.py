@@ -118,6 +118,8 @@ def cmd_status(args) -> int:
 
 
 def cmd_diff(args) -> int:
+    from difflib import unified_diff
+
     from agentsync import AgentSyncer
     from agentsync.config import is_initialised
 
@@ -134,6 +136,16 @@ def cmd_diff(args) -> int:
         return 0
 
     print(report.summary())
+    for result in report.results:
+        if not result.changed or result.new_content is None:
+            continue
+        for line in unified_diff(
+            (result.old_content or "").splitlines(keepends=True),
+            result.new_content.splitlines(keepends=True),
+            fromfile=result.output_path if result.old_content is not None else "/dev/null",
+            tofile=result.output_path,
+        ):
+            print(line, end="" if line.endswith("\n") else "\n\\ No newline at end of file\n")
     return 0
 
 
@@ -252,7 +264,7 @@ Examples:
   agentsync sync              # sync all tool files from canonical source
   agentsync sync --dry-run    # preview changes without writing
   agentsync status            # check which files are out of sync
-  agentsync diff              # alias for sync --dry-run
+  agentsync diff              # show proposed rule file edits
   agentsync add gemini_md     # add Gemini CLI support
   agentsync remove cursorrules  # remove a tool
   agentsync list              # list all supported tools
