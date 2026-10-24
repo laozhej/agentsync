@@ -181,8 +181,7 @@ def _parse_config_manual(config_path: Path, root: Path) -> AgentSyncConfig:
         if tools_match:
             tools_block = tools_match.group(1)
             tools = re.findall(r'"([^"]+)"', tools_block)
-            if tools:
-                cfg.tools = tools
+            cfg.tools = tools
 
         for line in text.splitlines():
             line = line.strip()
@@ -214,23 +213,70 @@ def read_rules(root: Path | None = None) -> str:
     return rules_path.read_text(encoding="utf-8")
 
 
-def write_config(root: Path | None = None, tools: list[str] | None = None) -> None:
-    """Write a fresh config file."""
+def _replace_tools(content: str, replacement: str, newline: str) -> str:
+    """Replace the tools array without touching strings, comments or other tables."""
+    import re
+
+    strings = "|".join(
+        (
+            r'"""(?:\\.|(?!""").)*"{3,5}',
+            r"'''(?:(?!''').)*'{3,5}",
+            r'"(?:\\.|[^"\\])*"',
+            r"'[^']*'",
+        )
+    )
+    tokens = re.finditer(
+        r"(?P<table>^[ \t]*\[(?P<table_name>[^\r\n]*?)\][ \t]*(?:#[^\r\n]*)?(?:\r?\n|$))"
+        rf"""|(?P<tools>^[ \t]*(?:tools|"tools"|'tools')[ \t]*=[ \t]*\[(?:{strings}|#[^\r\n]*|[^\]"'#])*\])"""
+        rf"|#[^\r\n]*|{strings}",
+        content,
+        re.MULTILINE | re.DOTALL,
+    )
+    in_agentsync = False
+    insertion = None
+    for token in tokens:
+        if token.group("table") is not None:
+            if in_agentsync:
+                insertion = token.start()
+                break
+            in_agentsync = token.group("table_name").strip() in (
+                "agentsync",
+                '"agentsync"',
+                "'agentsync'",
+            )
+            if in_agentsync:
+                insertion = len(content)
+        elif in_agentsync and token.group("tools") is not None:
+            return content[: token.start()] + replacement + content[token.end() :]
+
+    if insertion is None:
+        separator = "" if not content or content.endswith("\n") else newline
+        return content + f"{separator}[agentsync]{newline}{replacement}{newline}"
+    separator = "" if content[:insertion].endswith("\n") else newline
+    return content[:insertion] + separator + replacement + newline + content[insertion:]
+
+
+def write_config(
+    root: Path | None = None,
+    tools: list[str] | None = None,
+    *,
+    preserve_existing: bool = False,
+) -> None:
+    """Write a config, optionally preserving everything outside the tools array."""
     root = root or Path.cwd()
     config_path = root / CONFIG_FILE
     config_path.parent.mkdir(parents=True, exist_ok=True)
     content = DEFAULT_CONFIG
-    if tools:
-        tool_list = "\n".join(f'    "{t}",' for t in tools)
-        import re
+    if preserve_existing and config_path.exists():
+        content = config_path.read_bytes().decode("utf-8")
+    if tools is not None:
+        import json
 
-        content = re.sub(
-            r"tools = \[.*?\]",
-            f"tools = [\n{tool_list}\n]",
-            content,
-            flags=re.DOTALL,
-        )
-    config_path.write_text(content, encoding="utf-8")
+        newline = "\r\n" if "\r\n" in content else "\n"
+        tool_lines = [f"    {json.dumps(t, ensure_ascii=False)}," for t in tools]
+        replacement = newline.join(["tools = [", *tool_lines, "]"])
+        content = _replace_tools(content, replacement, newline)
+    config_path.write_bytes(content.encode("utf-8"))
 
 
 def write_rules(content: str | None = None, root: Path | None = None) -> None:

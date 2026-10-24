@@ -155,7 +155,7 @@ def cmd_add(args) -> int:
         return 0
 
     cfg.tools.append(tool_id)
-    write_config(root, tools=cfg.tools)
+    write_config(root, tools=cfg.tools, preserve_existing=True)
     tool = ALL_TOOLS[tool_id]
     print(f"\n{_ok(f'Added {tool.name}')}")
     print(f"  Output: {', '.join(tool.output_paths)}")
@@ -175,7 +175,7 @@ def cmd_remove(args) -> int:
         return 0
 
     cfg.tools.remove(tool_id)
-    write_config(root, tools=cfg.tools)
+    write_config(root, tools=cfg.tools, preserve_existing=True)
     print(f"\n{_ok(f'Removed {tool_id!r} from configuration.')}")
     print("  Note: existing file was not deleted. Delete manually if needed.\n")
     return 0
