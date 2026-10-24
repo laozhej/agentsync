@@ -166,7 +166,7 @@ class AgentSyncer:
             SyncReport with per-tool results
         """
         t0 = time.time()
-        canonical_content = read_rules(self.root)
+        canonical_content = read_rules(self.root, canonical_path=self.config.canonical_path)
         lock = _read_lock(self.config.lock_path)
         results: list[SyncResult] = []
         generated_paths: list[str] = []
@@ -228,7 +228,7 @@ class AgentSyncer:
             List of dicts with tool_id, path, status
         """
         try:
-            canonical_content = read_rules(self.root)
+            canonical_content = read_rules(self.root, canonical_path=self.config.canonical_path)
         except FileNotFoundError:
             return []
 
