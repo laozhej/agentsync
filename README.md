@@ -101,7 +101,7 @@ rulesync sync --dry-run
 rulesync init              # initialise in current project
 rulesync sync              # sync all tool files from canonical source
 rulesync sync --dry-run    # preview what would change
-rulesync diff              # alias for sync --dry-run
+rulesync diff              # show proposed rule file edits as a unified diff
 rulesync status            # check which files are out of sync
 rulesync add gemini_md     # add a new tool
 rulesync remove cursorrules  # remove a tool
@@ -199,6 +199,16 @@ status compares existing text with the current generator's output. If the rules
 have changed, those files remain `stale` because the previous output cannot be
 reconstructed. The next real sync records output hashes for subsequent checks.
 
+Invalid `.agentsync/config.toml` files stop configuration-dependent commands with
+exit code 1 and an error naming the file. Fix the settings before syncing; invalid
+settings do not fall back to the default tool list. `rulesync init --tools` also
+rejects unknown or empty tool IDs before writing files, including with `--force`.
+
+Python 3.10's dependency-free configuration reader supports the generated format:
+simple tables and bare keys, single-line quoted strings, booleans, and string arrays
+(including multiline arrays and comments). It rejects unsupported syntax with an
+error; use Python 3.11+ for the full TOML syntax supported by `tomllib`.
+
 ---
 
 ## The canonical format
@@ -227,6 +237,10 @@ reconstructed. The next real sync records output hashes for subsequent checks.
 ```
 
 agentsync translates this into the right format for each tool automatically.
+
+Set `canonical` in `.agentsync/config.toml` to use a different rules file. If an
+enabled tool already uses that file, sync leaves the source in place and only
+generates the other outputs.
 
 ---
 
