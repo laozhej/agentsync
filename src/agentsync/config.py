@@ -208,7 +208,12 @@ _EDIT_TOKENS = re.compile(
 
 def _replace_tools(content: str, tools: list[str], newline: str) -> str:
     """Change only agentsync.tools, validating each candidate edit before writing."""
-    expected = tomllib.loads(content)
+
+    def parse_for_comparison(text: str) -> dict:
+        # Keep each float literal in a tuple so unchanged NaNs compare equal.
+        return tomllib.loads(text, parse_float=lambda literal: (literal,))
+
+    expected = parse_for_comparison(content)
     section = expected.setdefault("agentsync", {})
     if not isinstance(section, dict):
         raise ValueError("agentsync must be a TOML table.")
@@ -220,7 +225,7 @@ def _replace_tools(content: str, tools: list[str], newline: str) -> str:
 
     def matches(candidate: str) -> bool:
         try:
-            return tomllib.loads(candidate) == expected
+            return parse_for_comparison(candidate) == expected
         except tomllib.TOMLDecodeError:
             return False
 

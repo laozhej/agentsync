@@ -67,6 +67,23 @@ def test_remove_last_tool_keeps_empty_list(tmp_path, monkeypatch):
     assert load_config(tmp_path).tools == []
 
 
+@pytest.mark.parametrize(
+    ("command", "tool", "replacement"),
+    [(cmd_add, "aider", '["claude_md", "aider"]'), (cmd_remove, "claude_md", "[]")],
+)
+def test_tool_changes_preserve_nan_in_other_settings(
+    tmp_path, monkeypatch, command, tool, replacement
+):
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / CONFIG_FILE
+    config_path.parent.mkdir()
+    before = '[agentsync]\ntools = ["claude_md"]\n[other]\nscore = nan\nlimits = {safe = [-nan]}\n'
+    config_path.write_text(before, encoding="utf-8")
+
+    assert command(argparse.Namespace(tool=tool)) == 0
+    assert config_path.read_text(encoding="utf-8") == before.replace('["claude_md"]', replacement)
+
+
 def test_write_config_accepts_empty_tools(tmp_path):
     write_config(tmp_path, tools=[])
     assert load_config(tmp_path).tools == []
